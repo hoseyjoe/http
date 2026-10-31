@@ -3,7 +3,11 @@ package http;
 import haxe.Timer;
 import http.HttpMethod;
 import http.HttpRequest;
+#if cs
+import http.providers.DotNetHttpProvider;
+#else
 import http.providers.DefaultHttpProvider;
+#end
 import logging.LogManager;
 import logging.Logger;
 import promises.Promise;
@@ -14,6 +18,17 @@ import queues.NonQueue;
 import queues.QueueFactory;
 
 class HttpClient {
+    /**
+     * Whether https checks the server's certificate, for every client. A browser or node always checks.
+     */
+    public static var verifyCertificates(default, set):Bool = true;
+    private static function set_verifyCertificates(value:Bool):Bool {
+        #if (!cs && !no_ssl && (hxssl || hl || cpp || (neko && !(macro || interp) || eval)))
+        sys.ssl.Socket.DEFAULT_VERIFY_CERT = value;
+        #end
+        return verifyCertificates = value;
+    }
+
     private var log:Logger = new Logger(HttpClient);
     /**
      * Whether to follow http redirects automatically or not
@@ -82,7 +97,7 @@ class HttpClient {
     public var provider(get, set):IHttpProvider;
     private function get_provider():IHttpProvider {
         if (_provider == null) {
-            _provider = new DefaultHttpProvider();
+            _provider = #if cs new DotNetHttpProvider() #else new DefaultHttpProvider() #end;
 		    _provider.encodeUrl = encodeUrl;
         }
         return _provider;
